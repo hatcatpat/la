@@ -28,7 +28,7 @@ void data_callback(ma_device *dev, void *out, const void *in,
   lua_pushinteger(L, (double)bufsize);
   lua_setglobal(L, "bufsz");
 
-  lua_getglobal(L, "run");
+  lua_getglobal(L, "run_impl");
   if (lua_pcall(L, 0, 0, 0)) {
     if (!error) {
       printf("\n[lua error] %s\n", lua_tostring(L, lua_gettop(L)));
@@ -59,8 +59,6 @@ int init_lua() {
   L = luaL_newstate();
   luaL_openlibs(L);
 
-  luaL_dofile(L, "la.lua");
-
   lua_pushnumber(L, (double)device.sampleRate);
   lua_setglobal(L, "rate");
 
@@ -73,6 +71,8 @@ int init_lua() {
     lua_rawseti(L, -2, i);
   }
   lua_setglobal(L, "buf");
+
+  luaL_dofile(L, "la.lua");
 
   printf("[lua] init lua: successful\n");
   return 0;
@@ -97,7 +97,7 @@ int init_audio() {
 
 void print_command() {
   FILE *fp;
-  if ((fp = fopen("/tmp/la_tmp.lua", "r"))) {
+  if ((fp = fopen(LA_TMP_FILENAME, "r"))) {
     int c;
     while (1) {
       c = fgetc(fp);

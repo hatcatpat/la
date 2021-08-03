@@ -1,5 +1,12 @@
 -- default la functions
 function run() end
+
+function run_impl()
+  for _=1,bufsz do smp = _
+    set1(0)
+    run()
+  end
+end
 smp = 1
 rate = 44100
 bufsz = 512
@@ -26,60 +33,100 @@ end
 
 
 -- audio buffer utils
-function set_impl(val,chan)
-  buf[smp*2-1+chan] = val
+function set(v)
+  buf[smp*2-1] = v[1]
+  buf[smp*2] = v[2]
 end
 
-function set_bi(left,right)
-  set_impl(left,0)
-  set_impl(right,1)
+function set1(v)
+  buf[smp*2-1] = v
+  buf[smp*2] = v
 end
 
-function set_mono(val)
-  set_bi(val,val)
+function out(v)
+  buf[smp*2-1] = buf[smp*2-1] + v[1]
+  buf[smp*2] = buf[smp*2] + v[2]
 end
 
-function set_mono_pan(i,val,pan)
-  set_bi(val * (1-pan), val * pan)
+function out1(v)
+  buf[smp*2-1] = buf[smp*2-1] + v
+  buf[smp*2] = buf[smp*2] + v
 end
 
+function pan(v,p)
+  return {v * (1-p), v}
+end
+
+-- buf
+function gen_buf(dur, chans)
+  local buf = {}
+  local sz = floor(dur * rate)
+  for i=1, sz do
+    buf[i] = {}
+    for j=1,chans do
+      buf[i][j] = 0.0
+    end
+  end
+  return buf
+end
 
 -- delay
 function gen_del(max_del, chans)
   local del = {}
-  for i=1, chans do
-    del[i] = {}
-  end
-  del.r = 0
+  del.sz = floor(max_del * rate)
   del.w = 0
-  for i=1,floor(rate * max_del) do
-    del[1][i] = 0
-    del[2][i] = 0
-  end
+  del.d = 0.5
+  del.r = floor(del.d * del.sz)
+  del.b = gen_buf(max_del, chans)
   return del
 end
 
-function inc_del(del)
+function upd_del(del,input)
+  del.b[del.w + 1] = input
+  local o = del.b[del.r + 1]
+  del.w = (del.w + 1) % del.sz
+  del.r = (del.w + floor(del.d * del.sz)) % del.sz
+  return o
 end
 
+function upd_del1(del,input)
+  del.b[del.w + 1][1] = input
+  local o = del.b[del.r + 1][1]
+  del.w = (del.w + 1) % del.sz
+  del.r = (del.w + floor(del.d * del.sz)) % del.sz
+  return o
+end
 
 -- all these waves take a value from [0,1] and return a value from [-1,1]
-function inc_th(th,fr)
-  return (th + fr / rate) % 1.0
-end
-
-function sin_osc(v)
+function sin_wv(v)
   return math.sin(v * tau)
 end
 
-function saw_osc(v)
+function saw_wv(v)
   return v * 2.0 - 1.0
 end
 
-function pul_osc(v)
+function pul_wv(v)
   if v < 0.5 then
     return -1
   else
     return 1
   end
+end
+
+-- osc {th (theta), fr (freq), wv (waveform)}
+function gen_osc(fr,wv)
+  fr = fr or 440
+  wv = wv or sin_wv
+  local osc = {}
+  osc.th = 0
+  osc.fr = fr
+  osc.wv = wv
+  return osc
+end
+
+function upd_osc(osc)
+  local o = osc.wv(osc.th)
+  osc.th = (osc.th + osc.fr / rate) % 1.0
+  return o
 end
