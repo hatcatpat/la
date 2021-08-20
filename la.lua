@@ -14,10 +14,11 @@ bufsz = 512
 -- math utils
 pi = math.pi
 tau = math.pi * 2.0
-rand = math.random
+random = math.random
 sin = math.sin
 floor = math.floor
 abs = math.abs
+pow = math.pow
 
 function scale(x, inlo, inhi, outlo, outhi)
   if inhi == inlo then
@@ -27,35 +28,81 @@ function scale(x, inlo, inhi, outlo, outhi)
   end
 end
 
-function scale_bi(x,outlo,outhi)
-  return scale(x,-1,1,outlo,outhi)
-end
+function scale_bi(x,outlo,outhi) return scale(x,-1,1,outlo,outhi) end
 
+function gate(v)
+ if v > 0.0 then
+   return 1.0
+ else
+   return 0.0
+ end
+end
 
 -- audio buffer utils
 function set(v)
-  buf[smp*2-1] = v[1]
-  buf[smp*2] = v[2]
+  v = v or {0.0,0.0}
+  buf[smp*2-1] = v[1] or 0.0
+  buf[smp*2] = v[2] or 0.0
 end
 
 function set1(v)
+  v = v or 0.0
   buf[smp*2-1] = v
   buf[smp*2] = v
 end
 
 function out(v)
-  buf[smp*2-1] = buf[smp*2-1] + v[1]
-  buf[smp*2] = buf[smp*2] + v[2]
+  v = v or {0.0,0.0}
+  buf[smp*2-1] = buf[smp*2-1] + (v[1] or 0.0)
+  buf[smp*2] = buf[smp*2] + (v[2] or 0.0)
 end
 
 function out1(v)
+  v = v or 0.0
   buf[smp*2-1] = buf[smp*2-1] + v
   buf[smp*2] = buf[smp*2] + v
 end
 
-function pan(v,p)
-  return {v * (1-p), v}
+function pan1(v,p)
+  v = v or 0.0
+  return {v * (1.0-p), v * p}
 end
+
+function pan(v,p)
+  v = v or {0.0,0.0}
+  return {(v[1] or 0.0) * (1.0 - p), (v[2] or 0.0)}
+end
+
+function mul1(v,a)
+  v = v or 0.0
+  return v * a
+end
+
+function mul(v,x)
+  v = v or {0.0,0.0}
+  return {(v[1] or 0.0) * x, (v[2] or 0.0) * x}
+end
+
+function mul_(v1,v2)
+  v1 = v1 or {0.0,0.0}
+  v2 = v2 or {0.0,0.0}
+  return {(v1[1] or 0.0) * (v2[1] or 0.0), (v1[2] or 0.0) * (v2[2] or 0.0)}
+end
+
+function add1(v,a)
+  v = v or 0.0
+  return v + a
+end
+
+function add(v,a)
+  v = v or {0.0,0.0}
+  return {(v[1] or 0.0) + a, (v[2] or 0.0) + a}
+end
+
+buf = require "buf"
+del = require "del"
+osc = require "osc"
+adsr = require "adsr"
 
 -- buf
 function gen_buf(dur, chans)
@@ -97,36 +144,3 @@ function upd_del1(del,input)
   return o
 end
 
--- all these waves take a value from [0,1] and return a value from [-1,1]
-function sin_wv(v)
-  return math.sin(v * tau)
-end
-
-function saw_wv(v)
-  return v * 2.0 - 1.0
-end
-
-function pul_wv(v)
-  if v < 0.5 then
-    return -1
-  else
-    return 1
-  end
-end
-
--- osc {th (theta), fr (freq), wv (waveform)}
-function gen_osc(fr,wv)
-  fr = fr or 440
-  wv = wv or sin_wv
-  local osc = {}
-  osc.th = 0
-  osc.fr = fr
-  osc.wv = wv
-  return osc
-end
-
-function upd_osc(osc)
-  local o = osc.wv(osc.th)
-  osc.th = (osc.th + osc.fr / rate) % 1.0
-  return o
-end

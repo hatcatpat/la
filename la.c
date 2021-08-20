@@ -1,6 +1,7 @@
-#include <lauxlib.h>
-#include <lua.h>
-#include <lualib.h>
+#include <luajit-2.0/lauxlib.h>
+#include <luajit-2.0/lua.h>
+#include <luajit-2.0/luajit.h>
+#include <luajit-2.0/lualib.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -19,6 +20,16 @@ bool error = false;
 
 // audio
 ma_device device;
+
+typedef struct {
+  float *data;
+  ma_uint32 id, chans;
+  ma_uint64 len, size;
+} buffer;
+buffer buffers[8];
+
+int load_buffer(buffer *buf, char *filename);
+float read_buffer(buffer *buf, ma_uint64 pos, ma_uint32 chan);
 // ~audio
 
 void data_callback(ma_device *dev, void *out, const void *in,
@@ -59,6 +70,8 @@ int init_lua() {
   L = luaL_newstate();
   luaL_openlibs(L);
 
+  luaJIT_setmode(L, 0, LUAJIT_MODE_ENGINE | LUAJIT_MODE_ON);
+
   lua_pushnumber(L, (double)device.sampleRate);
   lua_setglobal(L, "rate");
 
@@ -95,6 +108,59 @@ int init_audio() {
   return 0;
 }
 
+int load_buffer(buffer *buf, char *filename) {
+  ma_decoder decoder;
+  ma_result result = ma_decoder_init_file_flac(filename, NULL, &decoder);
+  if (result != MA_SUCCESS) {
+    printf("[audio] loading filename %s failed!\n", filename);
+    return -1;
+  }
+  ma_uint64 len = ma_decoder_get_length_in_pcm_frames(&decoder);
+  printf("[audio] loaded %s: chans %i, len %llu\n", filename,
+         decoder.outputChannels, len);
+
+  buf->len = len;
+  buf->chans = decoder.outputChannels;
+  buf->size = len * buf->chans;
+  buf->data = (float *)malloc(buf->size * sizeof(float));
+
+  ma_decoder_read_pcm_frames(&decoder, buf->data, buf->size);
+
+  lua_createtable(L, 0, 0);
+  for (int i = 0; i < buf->size; i++) {
+    lua_pushnumber(L, buf->data[i]);
+    lua_rawseti(L, -2, i + 1);
+  }
+  lua_setglobal(L, buf->id == 0 ? "test_sample" : "test_sample_2");
+
+  lua_pushinteger(L, buf->size);
+  lua_setglobal(L, buf->id == 0 ? "test_sample_size" : "test_sample_size_2");
+
+  for (int i = 0; i < buf->size; ++i) {
+    printf("i %i, f %f |", i, buf->data[i]);
+  }
+  printf("\n");
+
+  ma_decoder_uninit(&decoder);
+  return 0;
+}
+
+float read_buffer(buffer *buf, ma_uint64 pos, ma_uint32 chan) {
+  if (chan < 0 || chan >= buf->chans || pos < 0 || pos >= buf->len ||
+      !buf->data)
+    return 0.0;
+
+  return buf->data[pos * buf->chans + chan];
+}
+
+int init_samples() {
+  buffers[0].id = 0;
+  buffers[1].id = 1;
+  load_buffer(&buffers[0], "test_sample.flac");
+  load_buffer(&buffers[1], "test_sample_2.flac");
+  return 0;
+}
+
 void print_command() {
   FILE *fp;
   if ((fp = fopen(LA_TMP_FILENAME, "r"))) {
@@ -113,11 +179,23 @@ void print_command() {
   }
 }
 
+void cleanup() {
+  // audio
+  for (int i = 0; i < 8; ++i)
+    if (buffers[i].data)
+      free(buffers[i].data);
+  ma_device_uninit(&device);
+
+  // lua
+  lua_close(L);
+}
+
 int main(int argc, char **argv) {
 
   if (init_audio() || init_lua())
     return 1;
 
+  init_samples();
   ma_device_start(&device);
 
   printf("repl started, press enter to reload...\n");
@@ -131,9 +209,6 @@ int main(int argc, char **argv) {
       print_command();
     }
   }
-
-  ma_device_uninit(&device);
-  lua_close(L);
 
   return 0;
 }

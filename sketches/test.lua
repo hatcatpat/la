@@ -1,33 +1,61 @@
-a = gen_osc(330, saw_wv)
-a2 = gen_osc(220, pul_wv)
-b = gen_osc(0.5)
-c = gen_osc(3, pul_wv)
-c2 = gen_osc(6, pul_wv)
+a = osc:new(440,sin_wv)
+b = osc:new(0.43,pul_wv)
+c = osc:new(0.1,sin_wv)
+d = osc:new(0.01,saw_wv)
+e = adsr:new(0,0.2)
 
-d = gen_del(0.1,2)
-d.d = 0.3
+a.wv = saw_wv
+a.wv = pul_wv
+a.wv = sin_wv
 
-d2 = gen_del(0.1,2)
-d2.d = 0.5
+c.fr = 1.1
+b.fr = 8
 
-d3 = gen_del(0.1,2)
-d3.d = 0.9
+dels = {}
+for i=1, 8 do
+  dels[i] = del:new(1.0,2)
+  dels[i]:set_r(i/8)
+end
 
+e:set_r(0.2)
+
+t = 0.0
+T = 0
+seq = {1,0,1,0, 1,0,1,1}
+pan = 0.0
+a.fr = 880
 function run()
-  local lfo = upd_osc(b)
-  c.fr = floor(scale_bi(lfo,1,4))
-  c2.fr = (floor(scale_bi(lfo,1,4)) + 2) % 16
-  a.fr = c.fr * 110
-  a2.fr = c2.fr * 110
-  d.d = scale_bi(lfo,0.0,1.0)
-  local o = upd_osc(a) * (upd_osc(c) > 0 and 1 or 0)
-  local o2 = upd_osc(a2) * (upd_osc(c2) > 0 and 1 or 0)
-  local oo = upd_del1(d,(o+o2) * 0.5)
-  local ooo = upd_del1(d2,oo * 0.5)
-  local oooo = upd_del1(d3,ooo * 0.5)
-  out1(o)
-  out1(o2)
-  out1(oo)
-  out1(ooo)
-  out1(oooo)
+  --c.fr = scale_bi(d:upd(),0.1,0.5)
+  --b.fr = scale_bi(c:upd(),0.5,16)
+  a.fr = scale_bi(b:upd(),220,220 * 4)
+  local v = pan1(a:upd() * e:upd(), pan)
+  out(v)
+
+  --local last = v
+  --for _,d in ipairs(dels) do
+    --d.fr = scale_bi(c.val,0.1,2.0)
+    --last = mul(d:upd(last), 0.5)
+    --out(last)
+  --end
+
+  t = t + 8.0/rate
+  if t > 1.0 then
+    if random(0,100) < 50 then
+      if random(0,100) < 50 then
+	a.wv = saw_wv
+      else
+	a.wv = pul_wv
+      end
+    else
+      a.wv = sin_wv
+    end
+    if seq[T] then
+      e.a = random(0,rate/8)
+      e.r = random(0,rate/8)
+      e:trig()
+    end
+    pan = scale(random(0,100),0,100,0.0,1.0)
+    t = 0.0
+    T = (T + 1) % #seq
+  end
 end
