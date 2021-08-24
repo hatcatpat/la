@@ -1,11 +1,12 @@
-local adsr = { a=0.0, r = 0.1 }
+local adsr = {a = 0.0, r = 0.1, func = nil}
 
 function adsr:new(a, r)
   self.__index = self
 
   local o = {}
-  o.a = a * rate
-  o.r = r * rate
+  o.a = a * rate_
+  o.r = r * rate_
+  o.prev = -1.0
   o.val = 1.0
   o.th = 0.0
   o.act = false
@@ -14,10 +15,12 @@ function adsr:new(a, r)
   return setmetatable(o, self)
 end
 
-function adsr:set_a(a) self.a = a * rate end
-function adsr:set_r(r) self.r = r * rate end
+function adsr:set_a(a) self.a = a * rate_ end
+function adsr:set_r(r) self.r = r * rate_ end
 
-function adsr:upd()
+function adsr:upd(v)
+  if v then self:trig(v) end
+
   if not self.act then return 0.0 end
 
   if self.th < self.a then
@@ -34,15 +37,14 @@ function adsr:upd()
 end
 
 function adsr:trig(v)
-  v = v or 1.0
-  if v > 0.0 then 
-    self.act = true 
+  if self.prev <= 0.0 and v > 0.0 then
+    self.act = true
     self.th = 0.0
 
-    if self.func then 
-      self.func(self)
-    end
+    if self.func then self.func(self) end
   end
+
+  self.prev = v
 end
 
 return adsr

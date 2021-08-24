@@ -1,61 +1,76 @@
-a = osc:new(440,sin_wv)
-b = osc:new(0.43,pul_wv)
-c = osc:new(0.1,sin_wv)
-d = osc:new(0.01,saw_wv)
-e = adsr:new(0,0.2)
+s = smp:new("test_sample.flac")
+s2 = smp:new("test_sample_2.flac")
 
-a.wv = saw_wv
-a.wv = pul_wv
-a.wv = sin_wv
+d = del:new(1, 2)
+d:set_r(0.6)
+d.fb = 0.9
+d_r_osc = osc:new(0.05, sin_wv)
+d_fb_osc = osc:new(0.05, sin_wv)
+dv1 = 1.0
 
-c.fr = 1.1
-b.fr = 8
+p_osc = osc:new(0.2, sin_wv)
 
-dels = {}
-for i=1, 8 do
-  dels[i] = del:new(1.0,2)
-  dels[i]:set_r(i/8)
+d2 = del:new(1, 2)
+d2:set_r(0.2)
+d2.fb = 0.7
+dv2 = 1.0
+
+a = adsr:new(0.0, 0.2)
+
+a.func = function()
+  s.r = 0
+  if random() < 0.5 then
+    -- s.fr = random() * 4
+    a:set_r(random() * 0.7)
+    d2:set_r(random())
+    d2.fb = random()
+  end
 end
 
-e:set_r(0.2)
+b = adsr:new(0.0, 0.5)
 
-t = 0.0
-T = 0
-seq = {1,0,1,0, 1,0,1,1}
-pan = 0.0
-a.fr = 880
-function run()
-  --c.fr = scale_bi(d:upd(),0.1,0.5)
-  --b.fr = scale_bi(c:upd(),0.5,16)
-  a.fr = scale_bi(b:upd(),220,220 * 4)
-  local v = pan1(a:upd() * e:upd(), pan)
-  out(v)
-
-  --local last = v
-  --for _,d in ipairs(dels) do
-    --d.fr = scale_bi(c.val,0.1,2.0)
-    --last = mul(d:upd(last), 0.5)
-    --out(last)
-  --end
-
-  t = t + 8.0/rate
-  if t > 1.0 then
-    if random(0,100) < 50 then
-      if random(0,100) < 50 then
-	a.wv = saw_wv
-      else
-	a.wv = pul_wv
-      end
+b.func = function()
+  s2.r = 0
+  if random() < 0.5 then
+    b:set_r(random() * 0.7)
+    if random() < 0.5 then
+      dv1 = 0
     else
-      a.wv = sin_wv
+      dv1 = 1.0
     end
-    if seq[T] then
-      e.a = random(0,rate/8)
-      e.r = random(0,rate/8)
-      e:trig()
+    if random() < 0.5 then
+      dv2 = 0
+    else
+      dv2 = 1.0
     end
-    pan = scale(random(0,100),0,100,0.0,1.0)
-    t = 0.0
-    T = (T + 1) % #seq
   end
+  trig_t = (trig_t + 1) % #trigs
+end
+
+b:set_r(0.1)
+
+a_trig = osc:new(8, pul_wv)
+b_trig = osc:new(8, pul_wv)
+
+trig_t = 0
+trigs = {1, 2, 1, 0, 1, 2, 1, 1, 0, 1, 2, 0, 1, 0, 1, 1}
+frs = {1, 1, 4, 2, 1, 1, 8, 2, 1, 1, 0.5, 0.5}
+
+function run()
+  a:trig(gate(a_trig:upd()))
+  b:trig(gate(b_trig:upd()))
+  d:set_r(norm(d_r_osc:upd()) * 0.4)
+  if random() < 0.5 then
+    d.fb = scale_bi(d_r_osc:upd(), 0.5, 1.0)
+    s2.fr = scale_bi(d_r_osc.val, 0.5, 1)
+  end
+  s.fr = frs[trig_t % #frs + 1]
+  s2.fr = frs[trig_t % #frs + 1]
+  local p = p_osc:upd()
+  local sv = mul(s:upd(), a:upd() * (1 - trigs[trig_t + 1]))
+  local sv2 = mul(s2:upd(), b:upd() * trigs[trig_t + 1])
+  local v = mul2(add2(sv, sv2), {1.0 - p, p})
+  out(v)
+  out(mul(d:upd(v), 0.7 * dv1))
+  out(mul(d2:upd(d.val), 0.7 * dv2))
 end
