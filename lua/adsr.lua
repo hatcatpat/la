@@ -1,50 +1,37 @@
-local adsr = {a = 0.0, r = 0.1, func = nil}
+local adsr = {}
 
-function adsr:new(a, r)
+function adsr:new(attack, release)
   self.__index = self
 
   local o = {}
-  o.a = a * rate_
-  o.r = r * rate_
-  o.prev = -1.0
-  o.val = 1.0
-  o.th = 0.0
-  o.act = false
-  o.func = nil
+  o.attack = attack or 0
+  o.release = release or 0
+  o.time = 0
+  o.active = false
+  o.value = 0
 
   return setmetatable(o, self)
 end
 
-function adsr:set_a(a) self.a = a * rate_ end
-function adsr:set_r(r) self.r = r * rate_ end
-
-function adsr:upd(v)
-  if v then self:trig(v) end
-
-  if not self.act then return 0.0 end
-
-  if self.th < self.a then
-    self.val = self.th / self.a
-  elseif self.th < self.a + self.r then
-    self.val = 1.0 - (self.th - self.a) / self.r
-  else
-    self.act = false
+function adsr:update()
+  if self.active then
+    if self.time < self.attack + self.release then
+      if self.time < self.attack then
+        self.value = self.time / self.attack
+      else
+        self.value = 1 - (self.time - self.attack) / self.release
+      end
+      self.time = self.time + la_inv_rate
+    else
+      self.active = false
+      self.value = 0
+      self.time = 0
+    end
   end
 
-  self.th = self.th + 1.0
-
-  return self.val
+  return self.value
 end
 
-function adsr:trig(v)
-  if self.prev <= 0.0 and v > 0.0 then
-    self.act = true
-    self.th = 0.0
-
-    if self.func then self.func(self) end
-  end
-
-  self.prev = v
-end
+function adsr:trigger() self.active = true end
 
 return adsr
