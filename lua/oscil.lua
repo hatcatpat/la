@@ -28,6 +28,7 @@ end
 function oscil:update()
   self.value = self.wave(self.phase, self.params)
   self.phase = (self.phase + self.freq * la_inv_rate) % 1.0
+
   return self.value
 end
 

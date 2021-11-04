@@ -6,6 +6,7 @@ function la_run()
     la_pos = pos
     set({0, 0})
     run()
+    la_time = la_time + 1
   end
 end
 
@@ -14,6 +15,7 @@ la_pos = 1
 la_rate = 44100
 la_inv_rate = 1 / la_rate
 la_bufsz = 512
+la_time = 0
 
 -- math utils
 pi = math.pi

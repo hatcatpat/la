@@ -20,7 +20,7 @@ function sampler:update()
   if self.active then
     local index = floor(self.read) * self.chans
 
-    for i = 1, self.chans do self.value[i] = self.data[index + i] end
+    for i in pairs(self.value) do self.value[i] = self.data[index + i] end
 
     self.read = self.read + self.speed
 
@@ -30,7 +30,7 @@ function sampler:update()
       else
         self.read = 0
         self.active = false
-        for i = 1, self.chans do self.value[i] = 0 end
+        for i in pairs(self.value) do self.value[i] = 0 end
       end
     end
   end
