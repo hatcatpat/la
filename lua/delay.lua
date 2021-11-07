@@ -11,12 +11,12 @@ function delay:new(max_delay, chans)
   o.delay = max_delay * 0.5
   o.feedback = 0.5
   o.value = {}
-  for i = 1, chans do o.value[i] = 0 end
+  for i = 1, o.chans do o.value[i] = 0 end
 
   return setmetatable(o, self)
 end
 
-function delay:update(input)
+function delay:__call(input)
   self.value = self.buffer:read(self.read + 1)
 
   self.buffer:write(add(mul(self.value, self.feedback),

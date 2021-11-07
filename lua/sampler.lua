@@ -1,36 +1,47 @@
 local sampler = {}
 
-function sampler:new(name)
+function sampler:new(buffer)
   self.__index = self
 
   local o = {}
   o.read = 0.0
   o.speed = 1.0
-  o.length, o.chans, o.data = load_sample(name)
-  o.value = {}
   o.loop = false
+  o.range = {0.0, 1.0}
   o.cut = true
   o.active = false
-  for i = 1, o.chans do o.value[i] = 0.0 end
+  o.value = {}
+  if not (buffer == nil) then self:set(buffer) end
 
   return setmetatable(o, self)
 end
 
-function sampler:update()
-  if self.active then
-    local index = floor(self.read) * self.chans
+function sampler:set(buffer)
+  self.buffer = buffer
 
-    for i = 1, self.chans do self.value[i] = self.data[index + i] end
+  if self.buffer == nil then
+    self.active = false
+  else
+    self.value = {}
+    for i = 1, self.buffer.chans do self.value[i] = 0.0 end
+  end
+end
+
+function sampler:__call()
+  if self.active then
+    for i = 1, self.buffer.chans do
+      self.value[i] = self.buffer:read(floor(self.read), i)
+    end
 
     self.read = self.read + self.speed
 
-    if abs(self.read) > self.length then
+    if abs(self.read) > self.buffer.length then
       if self.loop then
-        self.read = self.read % self.length
+        self.read = self.read % self.buffer.length
       else
         self.read = 0.0
         self.active = false
-        for i = 1, self.chans do self.value[i] = 0.0 end
+        for i = 1, self.buffer.chans do self.value[i] = 0.0 end
       end
     end
   end

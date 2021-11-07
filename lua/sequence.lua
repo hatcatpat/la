@@ -12,7 +12,7 @@ function sequence:new(list)
   return setmetatable(o, self)
 end
 
-function sequence:step(t)
+function sequence:__call(t)
   self.value = self.list[self.time + 1]
 
   t = t or 1
@@ -26,10 +26,21 @@ function sequence:set(list)
   self.length = #list
 end
 
-function sequence:shuffle() self.list = shuffle(self.list) end
-
 function sequence:reset() self.time = 0 end
 
 function sequence:jump(t) self.time = t % self.length end
+
+function sequence:shuffle() self.list = shuffle(self.list) end
+
+function sequence:rotate(n)
+  local list = {}
+  n = n % self.length
+  for i = 1, self.length do
+    local j = i + n
+    if j > self.length then j = j - self.length end
+    list[i] = self.list[j]
+  end
+  self.list = list
+end
 
 return sequence

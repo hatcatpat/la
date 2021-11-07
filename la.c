@@ -23,6 +23,7 @@ static int L_load_sample(lua_State *L);
 #include "libs/miniaudio.h"
 
 ma_device device;
+ma_decoder_config decoder_config;
 
 //----------------------------------------------------------------------
 void data_callback(ma_device *dev, void *out, const void *in,
@@ -109,6 +110,9 @@ int init_audio() {
     return -1;
   }
 
+  decoder_config = ma_decoder_config_init(
+      device.playback.format, device.playback.channels, device.sampleRate);
+
   printf("[audio] init audio: successful!\n");
   return 0;
 }
@@ -118,23 +122,24 @@ static int L_load_sample(lua_State *L) {
   const char *filename = lua_tostring(L, 1);
 
   ma_decoder decoder;
-  ma_result result = ma_decoder_init_file_flac(filename, NULL, &decoder);
+  ma_result result = ma_decoder_init_file(filename, &decoder_config, &decoder);
   if (result != MA_SUCCESS) {
     printf("\n[audio] loading filename %s failed!\n", filename);
     return 0;
   }
 
   ma_uint32 chans = decoder.outputChannels;
-  ma_uint64 dur = ma_decoder_get_length_in_pcm_frames(&decoder);
-  ma_uint64 size = dur * chans;
-  printf("\n[audio] loaded %s: dur %llu, chans %i\n", filename, dur, chans);
+  ma_uint64 length = ma_decoder_get_length_in_pcm_frames(&decoder);
+  ma_uint64 size = length * chans;
+  printf("\n[audio] loaded %s: length %llu, chans %i\n", filename, length,
+         chans);
 
   float *data = (float *)malloc(size * sizeof(float));
 
   ma_decoder_read_pcm_frames(&decoder, data, size);
   ma_decoder_uninit(&decoder);
 
-  lua_pushinteger(L, dur);
+  lua_pushinteger(L, length);
   lua_pushinteger(L, chans);
 
   lua_createtable(L, 0, 0);
@@ -143,7 +148,7 @@ static int L_load_sample(lua_State *L) {
     lua_rawseti(L, -2, i + 1);
   }
 
-  return 3; // dur, chans, data
+  return 3; // length, chans, data
 }
 
 //----------------------------------------------------------------------

@@ -25,13 +25,13 @@ function oscil:new(freq, wave)
   return setmetatable(o, self)
 end
 
-function oscil:update()
+function oscil:__call()
   self.value = self.wave(self.phase, self.params)
   self.phase = (self.phase + self.freq * la_inv_rate) % 1.0
 
   return self.value
 end
 
-function oscil:trigger() return not (self.value < 0) == (self:update() < 0) end
+function oscil:trigger() return not (self.value < 0) == (self() < 0) end
 
 return oscil

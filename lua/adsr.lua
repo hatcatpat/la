@@ -13,7 +13,7 @@ function adsr:new(attack, release)
   return setmetatable(o, self)
 end
 
-function adsr:update()
+function adsr:__call()
   if self.active then
     if self.time < self.attack + self.release then
       if self.time < self.attack then
