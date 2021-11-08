@@ -6,17 +6,17 @@ function sampler:new(buffer)
   local o = {}
   o.read = 0.0
   o.speed = 1.0
+  o.range = {lo = 0.0, hi = 1.0}
   o.loop = false
-  o.range = {0.0, 1.0}
   o.cut = true
   o.active = false
   o.value = {}
-  if not is_nil(buffer) then self:set(buffer) end
+  if not is_nil(buffer) then self:set_buffer(buffer) end
 
   return setmetatable(o, self)
 end
 
-function sampler:set(buffer)
+function sampler:set_buffer(buffer)
   self.buffer = buffer
 
   if self.buffer == nil then
@@ -28,19 +28,28 @@ end
 
 function sampler:__call()
   if self.active then
-    for i = 1, self.buffer.chans do
-      self.value[i] = self.buffer:read(floor(self.read) + 1, i)
-    end
+    local chans = self.buffer.chans
+    local length = self.buffer.length
+    local index = floor(self.read) % length + 1
+    for i = 1, chans do self.value[i] = self.buffer:read(index, i) end
 
     self.read = self.read + self.speed
 
-    if abs(self.read) > self.buffer.length then
+    local abs_read = abs(self.read)
+    local lo = self.range.lo * length
+    local hi = self.range.hi * length
+
+    if abs_read < lo or abs_read > hi then
       if self.loop then
-        self.read = self.read % self.buffer.length
+        if abs_read < lo then
+          self.read = hi
+        elseif abs_read > hi then
+          self.read = lo
+        end
       else
-        self.read = 0.0
+        self.read = lo
         self.active = false
-        dup(self.buffer.chans, 0.0, self.value)
+        dup(chans, 0.0, self.value)
       end
     end
   end
@@ -53,6 +62,15 @@ function sampler:trigger()
   if self.cut then self:reset() end
 end
 
-function sampler:reset() self.read = 0.0 end
+function sampler:reset() self.read = self.range.lo * self.buffer.length end
+
+function sampler:set_range(pos, len)
+  self.range.lo = clamp(pos, 0.0, 1.0)
+  self.range.hi = clamp(self.range.lo + len, 0.0, 1.0)
+end
+
+function sampler:breakbeat(len) self:set_range(floor(rand() / len) * len, len) end
+
+function sampler:reset_range() self.range = {lo = 0.0, hi = 1.0} end
 
 return sampler

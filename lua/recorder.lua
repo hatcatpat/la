@@ -15,7 +15,7 @@ end
 function recorder:set(buffer)
   self.buffer = buffer
   if is_nil(self.buffer) then self.record = false end
-  self.sampler:set(buffer)
+  self.sampler:set_buffer(buffer)
 end
 
 function recorder:__call(input)

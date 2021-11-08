@@ -1,41 +1,45 @@
-buf = buffer:from("test_sample.flac")
-buf2 = buffer:from("test_sample_2.flac")
+buf = buffer:file("test_sample.flac")
+buf2 = buffer:file("test_sample_2.flac")
+buf3 = buffer:file("drum_120.wav")
 
-smp = sampler:new(buf)
+smp = sampler:new(buf3)
+smp.loop = true
 
-trig = oscil:new(4, pulse_wave)
+trig = oscil:new(2, pulse_wave)
 
-recbuf = buffer:new(0.1, 2)
-rec = recorder:new(recbuf)
-rec.sampler.loop = true
-rec.sampler.speed = 1
-rec:trigger()
+lfo = oscil:new(0.1, sin_wave)
 
-mode = 0
+smp.pan = rand()
 
-del = delay:new(1, 2)
-del.feedback = 0.5
-del.delay = 0.01
-del.pan = rand()
+dels = {}
+for i = 1, 8 do dels[i] = delay:new(1, 2) end
+
+for i = 1, #dels do
+  dels[i].pan = rand()
+  dels[i].feedback = 0.6
+  dels[i].delay = (i / #dels) * 0.3
+end
 
 function run()
+  local l = lfo()
   if trig:trigger() then
-    if rand() < 0.5 then
-      rec.record = not rec.record
-      rec.sampler.speed = choose({2, 64}) * choose({-1, 1})
-      del.delay = choose({1, 2.5, 5}) * 0.01
-      del.pan = rand()
+    smp:set_buffer(choose({buf, buf2, buf3}))
+    if smp.buffer == buf3 then
+      smp:breakbeat(choose({0.25, 0.5, 0.125, 0.125 / 2}))
+    else
+      smp:reset_range()
     end
-    if rand() < 0.5 then mode = (mode + 1) % 2 end
+    smp.speed = choose({0.5, 1, 2, 4, 16})
+    smp.pan = rand()
     smp:trigger()
-    smp:set(choose({buf, buf2}))
-    smp.speed = choose({0.5, 1, 2})
+    for i = 1, #dels do dels[i].pan = rand() end
   end
-  if mode == 0 then
-    out(smp())
-  else
-    out(rec(smp()))
+  out(pan(smp(), smp.pan))
+  local v = get()
+  for i = #dels, 1, -1 do
+    v = pan(dels[i](v), dels[i].pan)
+    dels[i].delay = (i / #dels) * norm(l)
+    out(v)
   end
-  out(pan(del(get()), del.pan))
 end
 

@@ -12,7 +12,7 @@ function buffer:new(secs, chans)
   return setmetatable(o, self)
 end
 
-function buffer:from(name)
+function buffer:file(name)
   self.__index = self
 
   local o = {}
