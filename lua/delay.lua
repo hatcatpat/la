@@ -5,13 +5,12 @@ function delay:new(max_delay, chans)
 
   local o = {}
   o.chans = chans or 1
-  o.buffer = buffer:new(max_delay, chans)
+  o.buffer = buffer:new(max_delay, o.chans)
   o.read = 0
   o.write = 0
   o.delay = max_delay * 0.5
   o.feedback = 0.5
-  o.value = {}
-  for i = 1, o.chans do o.value[i] = 0 end
+  o.value = dup(o.chans, 0.0)
 
   return setmetatable(o, self)
 end

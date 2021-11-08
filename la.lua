@@ -1,12 +1,11 @@
--- default la functions
-function run() end
+-- la
+function run() end -- modify this!
 
 function la_run()
   for pos = 1, la_bufsz do
     la_pos = pos
     set({0, 0})
     run()
-    la_time = la_time + 1
   end
 end
 
@@ -15,7 +14,7 @@ la_pos = 1
 la_rate = 44100
 la_inv_rate = 1 / la_rate
 la_bufsz = 512
-la_time = 0
+la_midi = {}
 
 -- math utils
 pi = math.pi
@@ -27,11 +26,35 @@ sin = math.sin
 floor = math.floor
 abs = math.abs
 pow = math.pow
+log = math.log
 
-function dup(n, v)
-  local o = {}
-  for i = 1, n do o[i] = v end
-  return o
+function clamp(v, lo, hi)
+  if v < lo then
+    return lo
+  elseif v > hi then
+    return hi
+  else
+    return v
+  end
+end
+
+function midi2freq_(midi) return floor((440 / 32) * (2 ^ ((midi - 9) / 12))) end
+for i = 0, 127 do la_midi[i] = midi2freq_(i) end
+function midi2freq(midi) return la_midi[clamp(midi, 0, 127)] end
+
+function freq2midi(freq) return 69 + log(freq / 440, 2) * 12 end
+
+function is_nil(a) return a == nil end
+
+function dup(n, v, arr)
+  if is_nil(arr) then
+    local o = {}
+    for i = 1, n do o[i] = v end
+    return o
+  else
+    for i = 1, n do arr[i] = v end
+    return arr
+  end
 end
 
 function fill(n, f)
@@ -43,10 +66,10 @@ end
 function apply(a, b, f)
   local o = {}
 
-  if type(b) == "table" then
-    for i in pairs(a) do o[i] = f(a[i], b[i]) end
+  if type(b) == 'table' then
+    for i = 1, #a do o[i] = f(a[i], b[i]) end
   else
-    for i in pairs(a) do o[i] = f(a[i], b) end
+    for i = 1, #a do o[i] = f(a[i], b) end
   end
 
   return o
@@ -60,7 +83,7 @@ function scale_(x, inlo, inhi, outlo, outhi)
   end
 end
 function scale(x, inlo, inhi, outlo, outhi)
-  if type(x) == table then
+  if type(x) == 'table' then
     local o = {}
     for i in pairs(x) do o[i] = scale_(x[i], inlo, inhi, outlo, outhi) end
     return o
@@ -90,6 +113,26 @@ end
 
 function choose(a) return a[rand(1, #a)] end
 
+function chance(p) return rand() < p end
+
+function range(lo, hi, step)
+  local o = {}
+
+  lo = min(lo, hi)
+  hi = max(lo, hi)
+  if is_nil(step) or step == 0 then step = 1 end
+
+  v = lo
+  i = 1
+  while v <= hi do
+    o[i] = v
+    v = v + step
+    i = i + 1
+  end
+
+  return o
+end
+
 function gate_(v)
   if v > 0.0 then
     return 1.0
@@ -105,7 +148,7 @@ function mul(a, b) return apply(a, b, mul_) end
 function add_(a, b) return a + b end
 function add(a, b) return apply(a, b, add_) end
 
-function pan(v, p) return {v * (1 - p), v * p} end
+function pan(v, p) return mul({1 - p, p}, v) end
 
 -- audio buffer utils
 function set(v)

@@ -11,7 +11,7 @@ function sampler:new(buffer)
   o.cut = true
   o.active = false
   o.value = {}
-  if not (buffer == nil) then self:set(buffer) end
+  if not is_nil(buffer) then self:set(buffer) end
 
   return setmetatable(o, self)
 end
@@ -22,15 +22,14 @@ function sampler:set(buffer)
   if self.buffer == nil then
     self.active = false
   else
-    self.value = {}
-    for i = 1, self.buffer.chans do self.value[i] = 0.0 end
+    self.value = dup(self.buffer.chans, 0.0, self.value)
   end
 end
 
 function sampler:__call()
   if self.active then
     for i = 1, self.buffer.chans do
-      self.value[i] = self.buffer:read(floor(self.read), i)
+      self.value[i] = self.buffer:read(floor(self.read) + 1, i)
     end
 
     self.read = self.read + self.speed
@@ -41,7 +40,7 @@ function sampler:__call()
       else
         self.read = 0.0
         self.active = false
-        for i = 1, self.buffer.chans do self.value[i] = 0.0 end
+        dup(self.buffer.chans, 0.0, self.value)
       end
     end
   end

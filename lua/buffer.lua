@@ -7,8 +7,7 @@ function buffer:new(secs, chans)
   o.secs = secs or 1
   o.chans = chans or 1
   o.length = floor(secs * la_rate)
-  o.data = {}
-  for i = 1, o.length * o.chans do o.data[i] = 0.0 end
+  o.data = dup(o.length * o.chans, 0.0)
 
   return setmetatable(o, self)
 end

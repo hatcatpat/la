@@ -14,7 +14,7 @@ end
 
 function recorder:set(buffer)
   self.buffer = buffer
-  if self.buffer == nil then self.record = false end
+  if is_nil(self.buffer) then self.record = false end
   self.sampler:set(buffer)
 end
 
